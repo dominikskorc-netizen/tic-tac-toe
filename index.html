@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIC TAC TOE</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 24px 12px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+  color: white;
+  background: linear-gradient(135deg, #10152e, #39215e);
+}
+
+h1 {
+  font-size: 34px;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  color: #c9c5ff;
+}
+
+.robot {
+  font-size: 52px;
+}
+
+#status {
+  min-height: 50px;
+  margin: 22px 0;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(3, min(27vw, 100px));
+  grid-template-rows: repeat(3, min(27vw, 100px));
+  gap: 9px;
+  justify-content: center;
+  margin: 20px auto;
+}
+
+.cell {
+  border: 2px solid #8e80ff;
+  border-radius: 14px;
+  background: #282c52;
+  color: white;
+  font-size: clamp(36px, 11vw, 62px);
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #171a37;
+}
+
+.cell:disabled {
+  cursor: default;
+}
+
+.cell.x {
+  color: #61d7ff;
+}
+
+.cell.o {
+  color: #ff82ce;
+}
+
+.cell.win {
+  background: #24664f;
+  border-color: #75ffc7;
+}
+
+.action {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 17px;
+  margin: 5px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #a89bff;
+  color: #17152f;
+}
+
+#score {
+  line-height: 1.9;
+  margin: 22px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="robot">🤖</div>
+<h1>TIC TAC TOE</h1>
+<p class="subtitle">YOU ❌ VS SMART ROBOT ⭕</p>
+
+<div id="status">Your turn! Choose a square.</div>
+
+<div id="board"></div>
+
+<div id="score">
+  🏆 Your wins: <span id="wins">0</span><br>
+  🤖 Robot wins: <span id="losses">0</span><br>
+  🤝 Draws: <span id="draws">0</span>
+</div>
+
+<button class="action" onclick="newGame()">
+  🔄 NEW GAME
+</button>
+
+<button class="action" onclick="resetScore()">
+  RESET SCORE
+</button>
+
+<script>
+const HUMAN = "X";
+const ROBOT = "O";
+
+let board = Array(9).fill("");
+let gameOver = false;
+let thinking = false;
+
+let wins = 0;
+let losses = 0;
+let draws = 0;
+
+const winningLines = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6]
+];
+
+const boardElement = document.getElementById("board");
+const statusElement = document.getElementById("status");
+
+function winner(b) {
+  for (const line of winningLines) {
+    const [a, c, d] = line;
+
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+      return {
+        player: b[a],
+        line: line
+      };
+    }
+  }
+
+  return null;
+}
+
+function render(highlight = []) {
+  boardElement.innerHTML = "";
+
+  board.forEach((value, i) => {
+    const cell = document.createElement("button");
+
+    cell.className = "cell";
+
+    if (value === "X") cell.classList.add("x");
+    if (value === "O") cell.classList.add("o");
+    if (highlight.includes(i)) cell.classList.add("win");
+
+    cell.textContent =
+      value === "X" ? "❌" :
+      value === "O" ? "⭕" : "";
+
+    cell.setAttribute(
+      "aria-label",
+      value ? `Square ${i + 1}: ${value}` : `Empty square ${i + 1}`
+    );
+
+    cell.disabled = !!value || gameOver || thinking;
+    cell.addEventListener("click", () => humanMove(i));
+
+    boardElement.appendChild(cell);
+  });
+
+  document.getElementById("wins").textContent = wins;
+  document.getElementById("losses").textContent = losses;
+  document.getElementById("draws").textContent = draws;
+}
+
+function humanMove(i) {
+  if (gameOver || thinking || board[i]) return;
+
+  board[i] = HUMAN;
+
+  if (finishIfNeeded()) return;
+
+  thinking = true;
+  statusElement.textContent = "🤖 Robot is thinking...";
+  render();
+
+  setTimeout(() => {
+    const move = bestMove();
+
+    if (move !== -1) {
+      board[move] = ROBOT;
+    }
+
+    thinking = false;
+
+    if (!finishIfNeeded()) {
+      statusElement.textContent = "Your turn! Choose a square.";
+      render();
+    }
+  }, 350);
+}
+
+function finishIfNeeded() {
+  const result = winner(board);
+
+  if (result) {
+    gameOver = true;
+
+    if (result.player === HUMAN) {
+      wins++;
+      statusElement.textContent = "🎉 YOU WON! ROBOT DEFEATED!";
+    } else {
+      losses++;
+      statusElement.textContent = "🤖 ROBOT WINS! TRY AGAIN!";
+    }
+
+    render(result.line);
+    return true;
+  }
+
+  if (board.every(Boolean)) {
+    gameOver = true;
+    draws++;
+    statusElement.textContent = "🤝 DRAW! GOOD GAME!";
+    render();
+    return true;
+  }
+
+  return false;
+}
+
+// Minimax AI: searches possible moves
+// and chooses an optimal move.
+function minimax(b, depth, maximizing) {
+  const result = winner(b);
+
+  if (result?.player === ROBOT) return 10 - depth;
+  if (result?.player === HUMAN) return depth - 10;
+  if (b.every(Boolean)) return 0;
+
+  if (maximizing) {
+    let best = -Infinity;
+
+    for (let i = 0; i < 9; i++) {
+      if (!b[i]) {
+        b[i] = ROBOT;
+
+        best = Math.max(
+          best,
+          minimax(b, depth + 1, false)
+        );
+
+        b[i] = "";
+      }
+    }
+
+    return best;
+  }
+
+  let best = Infinity;
+
+  for (let i = 0; i < 9; i++) {
+    if (!b[i]) {
+      b[i] = HUMAN;
+
+      best = Math.min(
+        best,
+        minimax(b, depth + 1, true)
+      );
+
+      b[i] = "";
+    }
+  }
+
+  return best;
+}
+
+function bestMove() {
+  let bestScore = -Infinity;
+  let choices = [];
+
+  for (let i = 0; i < 9; i++) {
+    if (!board[i]) {
+      board[i] = ROBOT;
+
+      const score = minimax(board, 0, false);
+
+      board[i] = "";
+
+      if (score > bestScore) {
+        bestScore = score;
+        choices = [i];
+      } else if (score === bestScore) {
+        choices.push(i);
+      }
+    }
+  }
+
+  return choices.length
+    ? choices[Math.floor(Math.random() * choices.length)]
+    : -1;
+}
+
+function newGame() {
+  board = Array(9).fill("");
+  gameOver = false;
+  thinking = false;
+
+  statusElement.textContent = "Your turn! Choose a square.";
+
+  render();
+}
+
+function resetScore() {
+  wins = 0;
+  losses = 0;
+  draws = 0;
+
+  newGame();
+}
+
+render();
+</script>
+
+</body>
+</html>
